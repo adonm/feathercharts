@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DuckDB CLI (feathercharts)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader { border-top-color: #3498db; animation: spin 1s linear infinite; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen" x-data="duckdbApp()" x-init="initWebSocket">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center text-gray-900 mb-8">DuckDB CLI (feathercharts)</h1>
+        <div class="flex">
+            <div class="w-3/4 pr-4">
+                <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+                    <textarea id="query" placeholder="Enter SQL query" 
+                              class="w-full p-2 border rounded mb-2"
+                              rows="3"
+                              x-model="currentQuery"
+                              @keydown.enter.prevent="handleEnterKey($event)"
+                              @keydown.arrow-up.prevent="navigateHistory('up')"
+                              @keydown.arrow-down.prevent="navigateHistory('down')"></textarea>
+                    <div class="flex justify-between items-center">
+                        <button @click="sendQuery()" 
+                                :disabled="!isValidQuery()"
+                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline flex items-center"
+                                :class="{ 'opacity-50 cursor-not-allowed': !isValidQuery() }">
+                            Execute
+                            <div x-show="loading" class="loader ml-2 w-4 h-4 border-2 border-gray-300 border-t-2 rounded-full"></div>
+                        </button>
+                        <div x-text="dbName" class="text-sm text-gray-600"></div>
+                    </div>
+                </div>
+                <div id="output" class="bg-white shadow-md rounded p-4 h-96 overflow-auto">
+                    <pre class="text-sm text-gray-700 whitespace-pre-wrap" x-html="output"></pre>
+                </div>
+            </div>
+            <div class="w-1/4 pl-4">
+                <div class="bg-white shadow-md rounded p-4">
+                    <h2 class="text-xl font-bold mb-4">Previous Commands</h2>
+                    <input type="text" placeholder="Search commands" 
+                           class="w-full p-2 border rounded mb-4"
+                           x-model="searchTerm">
+                    <ul class="text-sm">
+                        <template x-for="command in filteredCommands" :key="command.query">
+                            <li class="mb-2">
+                                <a href="#" class="text-blue-500 hover:underline" @click.prevent="setQuery(command.query)" x-text="command.query"></a>
+                                <span class="text-gray-500 text-xs" x-text="`(${command.time}s)`"></span>
+                            </li>
+                        </template>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function duckdbApp() {
+            return {
+                ws: null,
+                currentQuery: '',
+                output: '',
+                dbName: '',
+                previousCommands: [],
+                searchTerm: '',
+                loading: false,
+                commandIndex: -1,
+                startTime: 0,
+
+                initWebSocket() {
+                    this.ws = new WebSocket('ws://' + location.host);
+                    this.ws.onmessage = (event) => {
+                        const message = JSON.parse(event.data);
+                        if (message.type === "stdout") {
+                            this.handleMessage(message.data);
+                        } else if (message.type === "stderr") {
+                            this.handleError(message.data);
+                        }
+                        this.updateLatestExecutionTime();
+                        this.loading = false;
+                    };
+                },
+
+                handleMessage(message) {
+                    if (message.startsWith('Using database:')) {
+                        this.dbName = message;
+                    } else {
+                        this.output += message + '\n';
+                    }
+                },
+
+                handleError(message) {
+                    this.output += `<span class="text-red-500">${message}</span>\n`;
+                },
+
+                isValidQuery() {
+                    const query = this.currentQuery.trim();
+                    return query.startsWith('.') || query.endsWith(';');
+                },
+
+                handleEnterKey(event) {
+                    if (!event.shiftKey && this.isValidQuery()) {
+                        this.sendQuery();
+                    } else {
+                        // Insert a newline at the cursor position
+                        const start = event.target.selectionStart;
+                        const end = event.target.selectionEnd;
+                        const value = event.target.value;
+                        this.currentQuery = value.substring(0, start) + "\n" + value.substring(end);
+                        // Move cursor to after the inserted newline
+                        this.$nextTick(() => {
+                            event.target.selectionStart = event.target.selectionEnd = start + 1;
+                        });
+                    }
+                },
+
+                sendQuery() {
+                    if (this.isValidQuery()) {
+                        this.startTime = Date.now();
+                        this.ws.send(this.currentQuery);
+                        this.output += `<a href="#" class="text-blue-500 hover:underline" @click.prevent="setQuery('${this.currentQuery.replace(/'/g, "\\'")}')">> ${this.currentQuery}</a>\n`;
+                        this.previousCommands.unshift({ query: this.currentQuery, time: 0 });
+                        this.currentQuery = '';
+                        this.loading = true;
+                        this.commandIndex = -1;
+                    }
+                },
+
+                setQuery(query) {
+                    this.currentQuery = query;
+                },
+
+                navigateHistory(direction) {
+                    if (direction === 'up' && this.commandIndex < this.previousCommands.length - 1) {
+                        this.commandIndex++;
+                    } else if (direction === 'down' && this.commandIndex > -1) {
+                        this.commandIndex--;
+                    }
+                    this.currentQuery = this.commandIndex === -1 ? '' : this.previousCommands[this.commandIndex].query;
+                },
+
+                updateLatestExecutionTime() {
+                    if (this.previousCommands.length > 0) {
+                        this.previousCommands[0].time = ((Date.now() - this.startTime) / 1000).toFixed(2);
+                    }
+                },
+
+                get filteredCommands() {
+                    return this.previousCommands.filter(cmd => 
+                        cmd.query.toLowerCase().includes(this.searchTerm.toLowerCase())
+                    );
+                }
+            }
+        }
+    </script>
+</body>
+</html>

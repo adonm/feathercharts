@@ -1,5 +1,6 @@
-# DuckDB binary
+# DuckDB binary and dbs
 duckdb
+*.db
 
 # Logs
 logs
