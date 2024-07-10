@@ -1,0 +1,10 @@
+{
+    "name": "duckdb-deno-server",
+    "type": "module",
+    "description": "DuckDB server using Deno",
+    "scripts": {
+        "start": "$(command -v deno || echo '/tmp/bin/deno') run --allow-net --allow-read --allow-write --allow-run --allow-env src/server.ts",
+        "bundle": "deno run --allow-all npm:esbuild src/client.ts --outfile=html/client.js",
+        "postinstall": "curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/tmp sh && /tmp/bin/deno cache src/server.ts"
+    }
+}

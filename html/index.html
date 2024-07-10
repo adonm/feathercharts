@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DuckDB CLI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="//unpkg.com/alpinejs" defer></script>
+  <style>
+    [x-cloak] {
+      display: none !important;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loader {
+      border-top-color: #3498db;
+      animation: spin 1s linear infinite;
+    }
+  </style>
+  <script src="client.js"></script>
+
+</head>
+
+<body class="bg-gray-100 min-h-screen" x-data="duckdbApp()" x-init="initWebSocket">
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-center text-gray-900 mb-8">
+      DuckDB CLI
+    </h1>
+    <div class="flex">
+      <div class="w-3/4 pr-4">
+        <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+          <textarea id="query" placeholder="Enter SQL query" class="w-full p-2 border rounded mb-2" rows="3"
+            x-model="currentQuery" @keydown.enter.prevent="handleEnterKey($event)"
+            @keydown.arrow-up.prevent="navigateHistory('up')"
+            @keydown.arrow-down.prevent="navigateHistory('down')"></textarea>
+          <div class="flex justify-between items-center">
+            <button @click="sendQuery()" :disabled="!isValidQuery()"
+              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline flex items-center"
+              :class="{ 'opacity-50 cursor-not-allowed': !isValidQuery() }">
+              Execute
+              <div x-show="loading" class="loader ml-2 w-4 h-4 border-2 border-gray-300 border-t-2 rounded-full"></div>
+            </button>
+            <div x-text="dbName" class="text-sm text-gray-600"></div>
+          </div>
+        </div>
+        <div id="output" class="bg-white shadow-md rounded p-4 h-96 overflow-auto">
+          <pre class="text-sm text-gray-700 whitespace-pre-wrap" x-html="output"></pre>
+        </div>
+      </div>
+      <div class="w-1/4 pl-4">
+        <div class="bg-white shadow-md rounded p-4">
+          <h2 class="text-xl font-bold mb-4">Previous Commands</h2>
+          <input type="text" placeholder="Search commands" class="w-full p-2 border rounded mb-4"
+            x-model="searchTerm" />
+          <ul class="text-sm">
+            <template x-for="command in filteredCommands" :key="command.query">
+              <li class="mb-2">
+                <a href="#" class="text-blue-500 hover:underline" @click.prevent="setQuery(command.query)"
+                  x-text="command.query"></a>
+                <span class="text-gray-500 text-xs" x-text="`(${command.time}s)`"></span>
+              </li>
+            </template>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
