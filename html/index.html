@@ -2,107 +2,139 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DuckDB CLI</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DuckDB API Demo</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="//unpkg.com/alpinejs" defer></script>
-  <style>
-    [x-cloak] {
-      display: none !important;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    .loader {
-      border-top-color: #3498db;
-      animation: spin 1s linear infinite;
-    }
-  </style>
-  <script src="client.js"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 
-<body class="bg-gray-100 min-h-screen" x-data="duckdbApp()" x-init="initWebSocket">
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold text-center text-gray-900 mb-8">DuckDB CLI</h1>
-    <div class="flex">
-      <div class="w-3/4 pr-4">
-        <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
-          <textarea id="query" placeholder="Enter SQL query" class="w-full p-2 border rounded mb-2" rows="3"
-            x-model="currentQuery" @keydown.enter.prevent="handleEnterKey($event)"
-            @keydown.arrow-up.prevent="navigateHistory('up')"
-            @keydown.arrow-down.prevent="navigateHistory('down')"></textarea>
-          <div class="flex justify-between items-center">
-            <button @click="sendQuery()" :disabled="!isValidQuery()"
-              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline flex items-center"
-              :class="{ 'opacity-50 cursor-not-allowed': !isValidQuery() }">
-              Execute
-              <div x-show="loading" class="loader ml-2 w-4 h-4 border-2 border-gray-300 border-t-2 rounded-full"></div>
-            </button>
+<body class="bg-gray-100 p-8">
+  <div x-data="apiDemo()" class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6">DuckDB API Demo</h1>
+
+    <div class="mb-6">
+      <label for="tableSelect" class="block mb-2">Select Table:</label>
+      <select id="tableSelect" x-model="selectedTable" @change="changeTable" class="border p-2 w-full max-w-xs">
+        <option value="">Select a table</option>
+        <template x-for="table in tables" :key="table.schema + '.' + table.name">
+          <option :value="table.schema + '.' + table.name" x-text="table.schema + '.' + table.name"></option>
+        </template>
+      </select>
+    </div>
+
+    <template x-if="selectedTable">
+      <div>
+        <div class="mb-6">
+          <h2 class="text-xl font-semibold mb-2">Add Record</h2>
+          <form @submit.prevent="addRecord">
+            <template x-for="column in selectedTableInfo.column_names" :key="column">
+              <div class="mb-2">
+                <label :for="column" x-text="column" class="block"></label>
+                <input :id="column" :name="column" :type="getInputType(column)" class="border p-2 w-full max-w-md">
+              </div>
+            </template>
+            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Add Record</button>
+          </form>
+        </div>
+
+        <div class="mb-6">
+          <h2 class="text-xl font-semibold mb-2" x-text="`${selectedTable} Records`"></h2>
+          <button @click="getRecords" class="bg-green-500 text-white px-4 py-2 rounded mb-4">Refresh Records</button>
+          <div class="overflow-x-auto">
+            <table class="w-full bg-white shadow-md rounded">
+              <thead>
+                <tr>
+                  <template x-for="column in selectedTableInfo.column_names" :key="column">
+                    <th class="border p-2" x-text="column"></th>
+                  </template>
+                  <th class="border p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="record in records" :key="record.id">
+                  <tr>
+                    <template x-for="column in selectedTableInfo.column_names" :key="column">
+                      <td class="border p-2" x-text="record[column]"></td>
+                    </template>
+                    <td class="border p-2">
+                      <button @click="deleteRecord(record.id)"
+                        class="bg-red-500 text-white px-2 py-1 rounded">Delete</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
           </div>
         </div>
-        <div id="output" class="bg-white shadow-md rounded p-4 h-64 overflow-auto">
-          <pre class="text-sm text-gray-700 whitespace-pre-wrap" x-html="output"></pre>
-        </div>
-        <div x-show="tableData.length" class="mt-4 bg-white shadow-md rounded p-4">
-          <table class="min-w-full">
-            <thead>
-              <tr>
-                <template x-for="header in tableHeaders">
-                  <th
-                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                    @click="sortTable(header)">
-                    <span x-text="header"></span>
-                    <span x-show="sortColumn === header">
-                      <template x-if="sortDirection === 'asc'">▲</template>
-                      <template x-if="sortDirection === 'desc'">▼</template>
-                    </span>
-                  </th>
-                </template>
-              </tr>
-              <tr>
-                <template x-for="header in tableHeaders">
-                  <th>
-                    <input class="w-full px-2 py-1 text-sm" type="text" :placeholder="'Filter ' + header"
-                      @input="filterTable(header, $event.target.value)">
-                  </th>
-                </template>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="row in filteredTableData">
-                <tr>
-                  <template x-for="header in tableHeaders">
-                    <td class="border px-4 py-2" x-text="row[header]"></td>
-                  </template>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
       </div>
-      <div class="w-1/4 pl-4">
-        <div class="bg-white shadow-md rounded p-4">
-          <h2 class="text-xl font-bold mb-4">Previous Commands</h2>
-          <input type="text" placeholder="Search commands" class="w-full p-2 border rounded mb-4"
-            x-model="searchTerm" />
-          <ul class="text-sm">
-            <template x-for="command in filteredCommands" :key="command.query">
-              <li class="mb-2">
-                <a href="#" class="text-blue-500 hover:underline" @click.prevent="setQuery(command.query)"
-                  x-text="command.query"></a>
-                <span class="text-gray-500 text-xs" x-text="`(${command.time}s)`"></span>
-              </li>
-            </template>
-          </ul>
-        </div>
-      </div>
-    </div>
+    </template>
   </div>
+
+  <script>
+    function apiDemo() {
+      return {
+        tables: [],
+        selectedTable: '',
+        selectedTableInfo: null,
+        records: [],
+        async getTables() {
+          const response = await fetch('/api/tables');
+          this.tables = await response.json();
+        },
+        async getRecords() {
+          const response = await fetch(`/api/${this.selectedTable}`);
+          this.records = await response.json();
+        },
+        async addRecord(event) {
+          const formData = new FormData(event.target);
+          const data = Object.fromEntries(formData.entries());
+          const response = await fetch(`/api/${this.selectedTable}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          if (response.ok) {
+            event.target.reset();
+            await this.getRecords();
+          }
+        },
+        async deleteRecord(id) {
+          const response = await fetch(`/api/${this.selectedTable}/${id}`, { method: 'DELETE' });
+          if (response.ok) {
+            await this.getRecords();
+          }
+        },
+        changeTable() {
+          if (this.selectedTable) {
+            const [schema, name] = this.selectedTable.split('.');
+            this.selectedTableInfo = this.tables.find(t => t.schema === schema && t.name === name);
+            this.getRecords();
+          } else {
+            this.selectedTableInfo = null;
+            this.records = [];
+          }
+        },
+        getInputType(columnName) {
+          const columnIndex = this.selectedTableInfo.column_names.indexOf(columnName);
+          const columnType = this.selectedTableInfo.column_types[columnIndex];
+          switch (columnType.toLowerCase()) {
+            case 'integer':
+              return 'number';
+            case 'decimal(10,2)':
+              return 'number';
+            case 'timestamp':
+              return 'datetime-local';
+            default:
+              return 'text';
+          }
+        },
+        init() {
+          this.getTables();
+        }
+      }
+    }
+  </script>
 </body>
 
 </html>
