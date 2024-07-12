@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DuckDB API Tester</title>
+    <link href="https://unpkg.com/quasar@2/dist/quasar.prod.css" rel="stylesheet">
+    <script type="importmap">
+    {
+      "imports": {
+        "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js",
+        "quasar": "https://unpkg.com/quasar@2",
+        "axios": "https://unpkg.com/axios@1/dist/axios.js"
+      }
+    }
+    </script>
+</head>
+
+<body>
+    <div id="q-app">
+        <q-layout view="hHh Lpr lff">
+            <q-page-container>
+                <q-page padding>
+                    <h1 class="text-h4 q-mb-md">DuckDB API Tester</h1>
+
+                    <div class="row q-col-gutter-md">
+                        <div class="col-12">
+                            <q-input v-model="sql" label="SQL Query" filled type="textarea" />
+                        </div>
+                    </div>
+
+                    <div class="row q-col-gutter-md q-mt-sm">
+                        <div class="col-12">
+                            <q-btn color="primary" label="Query" @click="executeQuery" />
+                            <q-btn color="secondary" label="Execute" @click="executeStatement" />
+                            <q-btn color="accent" label="Load TPC-H Data" @click="loadTPCHData" />
+                        </div>
+                    </div>
+
+                    <div class="row q-col-gutter-md q-mt-md">
+                        <div class="col-12 col-md-8">
+                            <q-input v-model="filter" label="Filter Results" filled />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <q-btn color="info" label="Export CSV" @click="exportCSV" />
+                            <q-btn color="warning" label="Export JSON" @click="exportJSON" />
+                        </div>
+                    </div>
+
+                    <q-banner v-if="error" class="bg-negative text-white q-mt-md">{{ error }}</q-banner>
+                    <q-banner v-if="message" class="bg-positive text-white q-mt-md">{{ message }}</q-banner>
+
+                    <q-table v-if="results.length" :rows="results" :columns="columns" row-key="name" :filter="filter"
+                        class="q-mt-md" />
+                </q-page>
+            </q-page-container>
+        </q-layout>
+    </div>
+
+    <script type="module">
+        import { createApp, ref } from 'vue';
+        import { Quasar } from 'quasar';
+        import axios from 'axios';
+
+        const app = createApp({
+            setup() {
+                const sql = ref('');
+                const results = ref([]);
+                const columns = ref([]);
+                const filter = ref('');
+                const error = ref('');
+                const message = ref('');
+
+                const executeQuery = async () => {
+                    try {
+                        const response = await axios.post('/query', { sql: sql.value });
+                        results.value = response.data;
+                        columns.value = results.value.length > 0 ? Object.keys(results.value[0]).map(key => ({ name: key, field: key, label: key })) : [];
+                        error.value = '';
+                        message.value = 'Query executed successfully';
+                    } catch (err) {
+                        error.value = err.response?.data?.error || 'An error occurred';
+                        message.value = '';
+                    }
+                };
+
+                const executeStatement = async () => {
+                    try {
+                        const response = await axios.post('/execute', { sql: sql.value });
+                        message.value = response.data.message;
+                        error.value = '';
+                        results.value = [];
+                        columns.value = [];
+                    } catch (err) {
+                        error.value = err.response?.data?.error || 'An error occurred';
+                        message.value = '';
+                    }
+                };
+
+                const loadTPCHData = async () => {
+                    sql.value = `CALL dbgen(sf = 0.01);`;
+                    await executeStatement();
+                    sql.value = 'SELECT * FROM nation JOIN region ON nation.n_regionkey = region.r_regionkey LIMIT 10';
+                    await executeQuery();
+                };
+
+                const exportCSV = () => {
+                    if (results.value.length === 0) return;
+                    const csv = results.value.map(row => Object.values(row).join(',')).join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'export.csv';
+                    link.click();
+                };
+
+                const exportJSON = () => {
+                    if (results.value.length === 0) return;
+                    const json = JSON.stringify(results.value, null, 2);
+                    const blob = new Blob([json], { type: 'application/json' });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'export.json';
+                    link.click();
+                };
+
+                return {
+                    sql, results, columns, filter, error, message,
+                    executeQuery, executeStatement, loadTPCHData, exportCSV, exportJSON
+                };
+            }
+        });
+
+        app.use(Quasar);
+        app.mount('#q-app');
+    </script>
+</body>
+
+</html>
