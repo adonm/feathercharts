@@ -1,11 +1,7 @@
-// server.ts
-
 import { Hono } from "https://deno.land/x/hono@v4.3.11/mod.ts";
-import { renderToString } from "npm:@vue/server-renderer";
-import { createSSRApp } from "npm:vue";
+import { serveStatic } from "https://deno.land/x/hono@v4.3.11/middleware.ts";
 import { serialize } from "npm:superjson@2.2.1";
 import duckdb from "npm:duckdb@1.0.0";
-import { parse } from "npm:@vue/compiler-sfc";
 
 const PORT = parseInt(Deno.env.get("PORT") || "3000");
 const DB_FILE = Deno.env.get("DB_FILE") || ":memory:";
@@ -46,54 +42,20 @@ function initDB() {
 
 const app = new Hono();
 
+// Serve static files from the './static' directory
+app.use("/*", serveStatic({ root: "./static" }));
+
 // JSON endpoints
-app.post("/api/query", async (c) => {
+app.post("/query", async (c) => {
   const { sql, params = [] } = await c.req.json();
   const result = await query(sql, ...params);
   return result.success ? c.json(result.data) : c.json({ error: result.error }, 500);
 });
 
-app.post("/api/execute", async (c) => {
+app.post("/execute", async (c) => {
   const { sql, params = [] } = await c.req.json();
   const result = await exec(sql, ...params);
   return c.json(result);
-});
-
-// Serve Vue app
-app.get("/", async (c) => {
-  const vueSource = await Deno.readTextFile("./src/client.vue");
-  const { descriptor } = parse(vueSource);
-
-  const app = createSSRApp({
-    template: descriptor.template?.content,
-    ...descriptor.script?.content,
-  });
-
-  const appContent = await renderToString(app);
-
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>DuckDB API Tester</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-      </head>
-      <body>
-        <div id="app">${appContent}</div>
-        <script>
-          const app = Vue.createApp({
-            template: ${JSON.stringify(descriptor.template?.content)},
-            ${descriptor.script?.content.replace("export default ", "setup: () => (")}
-          })
-          app.mount('#app')
-        </script>
-      </body>
-    </html>
-  `;
-
-  return c.html(html);
 });
 
 initDB();
