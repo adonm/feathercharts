@@ -1,11 +1,15 @@
 {
-    "compilerOptions": {
-        "lib": ["dom", "dom.iterable", "deno.ns"],
-        "strict": true
-    },
-    "fmt": {
-        "options": {
-            "lineWidth": 160
-        }
+  "imports": {
+    "@hono/hono": "jsr:@hono/hono@^4.5.0",
+    "@observablehq/framework": "npm:@observablehq/framework@^1.9.0",
+    "duckdb": "npm:duckdb@^1.0.0"
+  },
+  "fmt": {
+    "lineWidth": 160
+  },
+  "lint": {
+    "rules": {
+      "lineWidth": 160
     }
+  }
 }
