@@ -20,6 +20,9 @@ const conn = db.connect();
 // Add the logger middleware
 app.use("*", logger());
 
+// Redirect root to Swagger UI
+app.get("/", (c) => c.redirect("/ui"));
+
 // Add Swagger UI
 app.get("/ui", swaggerUI({ url: "/doc" }));
 
