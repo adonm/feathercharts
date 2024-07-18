@@ -6,7 +6,9 @@
     "build": "rimraf dist && observable build",
     "dev": "observable preview",
     "deploy": "observable deploy",
-    "observable": "observable"
+    "observable": "observable",
+    "start": "PORT=3000 $(command -v deno || echo '/tmp/bin/deno') run -A --watch server.ts",
+    "postinstall": "curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/tmp sh && /tmp/bin/deno cache --allow-scripts server.ts"
   },
   "dependencies": {
     "@observablehq/framework": "^1.9.0",

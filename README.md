@@ -1,5 +1,7 @@
 # Feathercharts
 
+Note package.json has some specific scripts for glitch compatibility (`start` and `postinstall`)
+
 ## Roadmap
 
 Rough plan for how to build this thing. Initial idea - glue enough of duckdb/observable framework together that you could build 'access' style apps with
