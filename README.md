@@ -1,5 +1,21 @@
 # Feathercharts
 
+## Roadmap
+
+Rough plan for how to build this thing. Initial idea - glue enough of duckdb/observable framework together that you could build 'access' style apps with
+markdown/sql/js with all code just saved in database (so you would open the db file with the framework, and it lets you edit/use the app itself on the fly).
+
+- [x] Basic duckdb rest api working
+- [ ] Setup an editor ui for observable static files that embeds iframe of page served straight from observable preview
+  - likely built in observable markdown itself
+- [ ] Autosave edits to database, so that loading a database loads its embedded reports
+- [ ] Work out how to do versioning in database (probably latest text files in a table + git blob)
+- [ ] Have a save project button that copies db to a temp file then detatches it and lets you download it (loading this should include data + frontend for a
+      whole app ala access)
+- [ ] Figure out nicer desktop packaging (tauri?) and/or one liner installs (long term flatpak/winget/brew?)
+
+## Observable template docs below
+
 This is an [Observable Framework](https://observablehq.com/framework) project. To start the local preview server, run:
 
 ```
@@ -31,23 +47,29 @@ A typical Framework project looks like this:
 └─ README.md
 ```
 
-**`src`** - This is the “source root” — where your source files live. Pages go here. Each page is a Markdown file. Observable Framework uses [file-based routing](https://observablehq.com/framework/routing), which means that the name of the file controls where the page is served. You can create as many pages as you like. Use folders to organize your pages.
+**`src`** - This is the “source root” — where your source files live. Pages go here. Each page is a Markdown file. Observable Framework uses
+[file-based routing](https://observablehq.com/framework/routing), which means that the name of the file controls where the page is served. You can create as
+many pages as you like. Use folders to organize your pages.
 
 **`src/index.md`** - This is the home page for your site. You can have as many additional pages as you’d like, but you should always have a home page, too.
 
-**`src/data`** - You can put [data loaders](https://observablehq.com/framework/loaders) or static data files anywhere in your source root, but we recommend putting them here.
+**`src/data`** - You can put [data loaders](https://observablehq.com/framework/loaders) or static data files anywhere in your source root, but we recommend
+putting them here.
 
-**`src/components`** - You can put shared [JavaScript modules](https://observablehq.com/framework/javascript/imports) anywhere in your source root, but we recommend putting them here. This helps you pull code out of Markdown files and into JavaScript modules, making it easier to reuse code across pages, write tests and run linters, and even share code with vanilla web applications.
+**`src/components`** - You can put shared [JavaScript modules](https://observablehq.com/framework/javascript/imports) anywhere in your source root, but we
+recommend putting them here. This helps you pull code out of Markdown files and into JavaScript modules, making it easier to reuse code across pages, write
+tests and run linters, and even share code with vanilla web applications.
 
-**`observablehq.config.js`** - This is the [project configuration](https://observablehq.com/framework/config) file, such as the pages and sections in the sidebar navigation, and the project’s title.
+**`observablehq.config.js`** - This is the [project configuration](https://observablehq.com/framework/config) file, such as the pages and sections in the
+sidebar navigation, and the project’s title.
 
 ## Command reference
 
-| Command           | Description                                              |
-| ----------------- | -------------------------------------------------------- |
-| `npm install`            | Install or reinstall dependencies                        |
-| `npm run dev`        | Start local preview server                               |
-| `npm run build`      | Build your static site, generating `./dist`              |
-| `npm run deploy`     | Deploy your project to Observable                        |
-| `npm run clean`      | Clear the local data loader cache                        |
-| `npm run observable` | Run commands like `observable help`                      |
+| Command              | Description                                 |
+| -------------------- | ------------------------------------------- |
+| `npm install`        | Install or reinstall dependencies           |
+| `npm run dev`        | Start local preview server                  |
+| `npm run build`      | Build your static site, generating `./dist` |
+| `npm run deploy`     | Deploy your project to Observable           |
+| `npm run clean`      | Clear the local data loader cache           |
+| `npm run observable` | Run commands like `observable help`         |
