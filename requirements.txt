@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+ibis-framework[duckdb]
+pandas
+pyarrow
