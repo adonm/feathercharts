@@ -1,5 +1,13 @@
-.DS_Store
-/dist/
+# Python
+__pycache__/
+*.py[cod]
+venv/
+
+# Node
 node_modules/
-yarn-error.log
-.venv/
+package-lock.json
+
+# Common
+.env
+*.log
+.DS_Store
