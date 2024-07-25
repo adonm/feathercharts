@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 *.py[codz]
+*.pex
 venv/
 
 # Node

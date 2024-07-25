@@ -1,3 +1,4 @@
+nodeenv
 fastapi
 uvicorn
 ibis-framework[duckdb]
